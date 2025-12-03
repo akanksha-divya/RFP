@@ -99,12 +99,8 @@ function App() {
   return (
     <div className="app-container">
       {/* HEADER: Logo + Company Name */}
-      <header className="text-center mb-4">
-        <img
-          src="/logo.png"
-          alt="Company Logo"
-          className="logo"
-        />
+  <header className="app-header text-center mb-4">
+        
         <h1 className="fw-bold">My Company Name</h1>
       </header>
 
@@ -114,42 +110,55 @@ function App() {
           <h2 className="h5 mb-4 text-center">Welcome to Our Home Page</h2>
 
           <form onSubmit={handleSubmit}>
-            {/* VENDOR NAMES DROPDOWN */}
-            <div className="mb-3">
-              <label className="form-label">Select Vendors</label>
-              <select
-                className="form-select multiselect-dropdown"
-                multiple
-                value={selectedVendorNames}
-                onChange={handleSelectChange}
-                disabled={vendorsLoading}
-                style={{ minHeight: 120, border: '2px solid #007bff', background: '#fff', fontSize: '1rem', padding: '8px' }}
-              >
-                {vendorsLoading ? (
-                  <option disabled>Loading vendors...</option>
-                ) : vendorsError ? (
-                  <option disabled>Error loading vendors</option>
-                ) : vendorNames.length === 0 ? (
-                  <option disabled>No vendors available</option>
-                ) : (
-                  vendorNames.map((name, idx) => (
-                    <option key={idx} value={name}>{name}</option>
-                  ))
+            {/* VENDOR SELECTION + SELECTED (side-by-side on wide screens) */}
+            <div className="vendor-row">
+              <div className="vendor-column">
+                <label className="form-label">Select Vendors</label>
+                <select
+                  className="form-select multiselect-dropdown"
+                  multiple
+                  value={selectedVendorNames}
+                  onChange={handleSelectChange}
+                  disabled={vendorsLoading}
+                >
+                  {vendorsLoading ? (
+                    <option disabled>Loading vendors...</option>
+                  ) : vendorsError ? (
+                    <option disabled>Error loading vendors</option>
+                  ) : vendorNames.length === 0 ? (
+                    <option disabled>No vendors available</option>
+                  ) : (
+                    vendorNames.map((name, idx) => (
+                      <option key={idx} value={name}>{name}</option>
+                    ))
+                  )}
+                </select>
+                <div className="form-text">Hold Ctrl (Windows) or Cmd (Mac) to select multiple vendors.</div>
+
+                {vendorsError && (
+                  <div className="alert alert-danger mt-2" role="alert">
+                    Failed to load vendors: {vendorsError}
+                    <div>
+                      <button type="button" className="btn btn-sm btn-link" onClick={() => loadVendors()}>Retry</button>
+                    </div>
+                  </div>
                 )}
-              </select>
-              <div className="form-text">
-                Hold Ctrl (Windows) or Cmd (Mac) to select multiple vendors.
+              </div>
+
+              <div className="vendor-column selected-vendors-panel">
+                <label className="form-label">Selected Vendors</label>
+                <div className="selected-vendors-display">
+                  {selectedVendorNames.length === 0 ? (
+                    <div className="empty-state">No vendors selected</div>
+                  ) : (
+                    selectedVendorNames.map((name, idx) => (
+                      <div className="vendor-badge" key={idx}>{name}</div>
+                    ))
+                  )}
+                </div>
+                <div className="form-text">RFP will be sent to selected vendors' emails.</div>
               </div>
             </div>
-
-            {vendorsError && (
-              <div className="alert alert-danger mt-2" role="alert">
-                Failed to load vendors: {vendorsError}
-                <div>
-                  <button type="button" className="btn btn-sm btn-link" onClick={() => loadVendors()}>Retry</button>
-                </div>
-              </div>
-            )}
 
             {/* TEXT AREA */}
             <div className="mb-3">
@@ -162,20 +171,6 @@ function App() {
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
-
-            {/* Display selected vendors */}
-            {selectedVendorNames.length > 0 && (
-              <div className="mb-3">
-                <label className="form-label">Selected Vendors</label>
-                <div className="form-control" style={{ minHeight: 48, background: '#f9f9f9' }}>
-                  {selectedVendorNames.map((name, idx) => (
-                    <div key={idx}><strong>•</strong> {name}</div>
-                  ))}
-                </div>
-                <div className="form-text">RFP will be sent to selected vendors' emails.</div>
-              </div>
-            )}
-
             {/* SUBMIT BUTTON */}
             <div className="d-grid">
               <button type="submit" className="btn btn-primary" disabled={submitLoading}>
