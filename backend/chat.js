@@ -86,36 +86,42 @@ function saveRfpToPdf(rfpText, outputPath = "rfp.pdf") {
   });
 }
 
+// Export functions for use in API
+module.exports = { generateRFP, saveRfpToPdf };
+
 // ---- Full flow: description -> RFP -> PDF -> email ----
-(async () => {
-  try {
-    const description =
-      "We need a healthcare analytics dashboard that shows patient KPIs, billing, and doctor performance.";
+// Only run this if file is executed directly (not imported)
+if (require.main === module) {
+  (async () => {
+    try {
+      const description =
+        "";
 
-    // 1. Get RFP text from LLM
-    const rfpText = await generateRFP(description);
+      // 1. Get RFP text from LLM
+      const rfpText = await generateRFP(description);
 
-    // 2. Save it as PDF
-    const pdfPath = "Healthcare_RFP.pdf";
-    await saveRfpToPdf(rfpText, pdfPath);
-    console.log(`RFP saved to PDF: ${pdfPath}`);
+      // 2. Save it as PDF
+      const pdfPath = "Healthcare_RFP.pdf";
+      await saveRfpToPdf(rfpText, pdfPath);
+      console.log(`RFP saved to PDF: ${pdfPath}`);
 
-    // 3. Send that PDF to multiple emails
-    const recipients = [
-      "divyatigga0526@gmail.com",
-      "ipsatigga02@gmail.com",
-    ];
+      // 3. Send that PDF to multiple emails
+      const recipients = [
+        "divyatigga0526@gmail.com",
+        "ipsatigga02@gmail.com",
+      ];
 
-    await sendRfpEmail({
-      to: recipients,
-      subject: "Generated RFP – Healthcare Analytics Dashboard",
-      text: "Hi,\n\nPlease find attached the generated RFP PDF.\n\nRegards,\nRFP Generator",
-      pdfPath,
-    });
+      await sendRfpEmail({
+        to: recipients,
+        subject: "Generated RFP – Healthcare Analytics Dashboard",
+        text: "Hi,\n\nPlease find attached the generated RFP PDF.\n\nRegards,\nRFP Generator",
+        pdfPath,
+      });
 
-    console.log("Emails sent to:", recipients.join(", "));
-  } catch (err) {
-    console.error("Error generating RFP or sending emails:", err.message);
-    process.exitCode = 1;
-  }
-})();
+      console.log("Emails sent to:", recipients.join(", "));
+    } catch (err) {
+      console.error("Error generating RFP or sending emails:", err.message);
+      process.exitCode = 1;
+    }
+  })();
+}

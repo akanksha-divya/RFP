@@ -1,3 +1,13 @@
+.multiselect-dropdown {
+  min-height: 120px;
+  border: 2px solid #007bff;
+  background: #fff;
+  font-size: 1rem;
+  padding: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+}
 /* App.css */
 
 .app-container {
