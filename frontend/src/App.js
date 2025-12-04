@@ -106,7 +106,7 @@ function App() {
       <div className="app-container">
         {/* HEADER */}
         <header className="app-header text-center mb-4">
-          <h1 className="fw-bold app-title">My Company Name</h1>
+          <h1 className="fw-bold app-title">Akanksha Solutions</h1>
           <p className="app-subtitle">
             Automate your RFP generation & vendor selection
           </p>
@@ -220,9 +220,6 @@ function App() {
               {lastSendId && (
                 <div className="mt-4">
                   <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
-                    <span className="badge bg-light text-muted">
-                      Last Send ID: {lastSendId}
-                    </span>
                     <button
                       type="button"
                       className="btn btn-outline-secondary btn-sm"
@@ -256,7 +253,7 @@ function App() {
                     >
                       {processLoading
                         ? "Processing..."
-                        : "Collect Replies & Select Best"}
+                        : "Select Best"}
                     </button>
                   </div>
 
@@ -272,25 +269,6 @@ function App() {
                       </div>
                     </div>
                   )}
-
-                  {/* If you want to show replies, uncomment this block */}
-                  {/* {vendorReplies.length > 0 && (
-                    <div className="mt-3 card border-0 replies-card">
-                      <div className="card-body">
-                        <h4 className="h6 mb-3">Collected Replies</h4>
-                        {vendorReplies.map((r, i) => (
-                          <div key={i} className="mb-3 reply-item">
-                            <div><strong>From:</strong> {r.from}</div>
-                            <div><strong>Vendors:</strong> {(r.vendors || []).join(', ')}</div>
-                            <div className="reply-text">
-                              {r.text}
-                            </div>
-                            {i !== vendorReplies.length - 1 && <hr />}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )} */}
                 </div>
               )}
             </form>

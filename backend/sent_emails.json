@@ -268,5 +268,29 @@
       "divyatigga0526@gmail.com"
     ],
     "pdfFilename": "RFP_1764822259609.pdf"
+  },
+  {
+    "sendId": "send-1764834911200-e0b6bf",
+    "messageId": "<3231e9c8-48b2-9ee0-0c6d-9f6271ebaf42@gmail.com>",
+    "to": [
+      "divyatigga0526@gmail.com",
+      "prashali309@gmail.com"
+    ],
+    "subject": "Generated RFP - 4/12/2025, 1:25:11 pm [sendId:send-1764834911200-e0b6bf]",
+    "pdfPath": "C:\\Users\\akank\\RFP\\backend\\RFP_1764834911088.pdf",
+    "timestamp": "2025-12-04T07:55:15.575Z"
+  },
+  {
+    "sendId": "send-1764834911200-e0b6bf",
+    "timestamp": "2025-12-04T07:55:15.580Z",
+    "vendorNames": [
+      "Sony Enterprises",
+      "Ayur Global Pvt. Ltd"
+    ],
+    "recipientEmails": [
+      "divyatigga0526@gmail.com",
+      "prashali309@gmail.com"
+    ],
+    "pdfFilename": "RFP_1764834911088.pdf"
   }
 ]
