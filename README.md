@@ -1,6 +1,7 @@
 _**RFP Generator & Vendor Selection System**_
 
 **Overview **
+
 A full-stack application that allows organizations to:
 1. Create an RFP (Request For Proposal) automatically using AI (LLM)
 2. Send the generated RFP PDF to selected vendors via email
@@ -22,6 +23,7 @@ a. Prerequisites
 
 
 b. Install Steps
+
 Backend setup
 - `cd backend`
 - `npm install`
@@ -38,33 +40,53 @@ c. Configure Email Sending/Receiving
 Create .env inside backend/:
 
 IMAP_HOST=imap.gmail.com
+
 IMAP_PORT=993
+
 IMAP_USER=your_email@gmail.com
+
 IMAP_PASS=email_app_password
+
 IMAP_TLS=true
+
 SMTP_HOST=smtp.gmail.com
+
 SMTP_PORT=465
+
 SMTP_USER=your_email@gmail.com
+
 SMTP_PASS=email_app_password
+
 
 d. Run Everything Locally
 
 Start Ollama server
+
 - ollama serve
+  
 - Pull an LLM
+  
 - ollama pull gemma3:1b
+  
 
 Start backend
+
 - node main.js
+  
 
 Start frontend
+
 - npm start
 
 Open browser:
+
 - http://localhost:3000/
+  
 
 **2. Tech Stack**
+
 a. Technologies Used
+
 | Layer            | Tools / Libraries                                       |
 |------------------|---------------------------------------------------------|
 | Frontend         | React, Bootstrap 5, Custom CSS                          |
@@ -77,7 +99,9 @@ a. Technologies Used
 
 
 **3. API Documentation**
+
 a. Endpoints
+
 | Method | Endpoint             | Description                                           |
 |--------|----------------------|-------------------------------------------------------|
 | POST   | `/api/generate-rfp`  | Generates RFP text, creates PDF, sends email to vendors |
@@ -86,7 +110,9 @@ a. Endpoints
 
 
 **4. Decisions & Assumptions**
+
 a. Key System Design Decisions
+
 - AI comparison uses index-based enforcement to prevent hallucinated vendor names
 - Emails matched using `sendId` contained in subject or body
 - Fallback vendor selection uses reply count heuristic
@@ -94,13 +120,16 @@ a. Key System Design Decisions
 
 
 **b. Assumptions**
+
 - Vendors reply with the same subject (or include `sendId` in body)
 - Simple IMAP inbox structure (`INBOX` only)
 - No attachments handling yet (can be enhanced)
 - JSON data store will be replaced later with a database
 
 5. AI Tools Usage
+   
 a. AI tools used
+
 | Tool               | Usage                                              |
 |--------------------|----------------------------------------------------|
 | ChatGPT (primary)  | Prompt design, debugging                           |
@@ -108,6 +137,7 @@ a. AI tools used
 
 
 b. What AI helped with
+
 - Designing vendor evaluation prompt
 - Improving JSON return structure & validation
 - Faster frontend layout generation (React + Bootstrap)
@@ -115,6 +145,7 @@ b. What AI helped with
 
 
 c. Learning Outcomes
+
 - AI can significantly reduce boilerplate development time
 - Prompt engineering is critical for reliable structured output
 - Validation layers still required to avoid hallucinated responses
