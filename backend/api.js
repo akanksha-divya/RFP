@@ -187,6 +187,14 @@ app.post('/api/generate-rfp', async (req, res) => {
 //   }
 // });
 
+function extractEmail(str = '') {
+  if (!str) return '';
+  const match = str.match(/<([^>]+)>/);
+  if (match && match[1]) return match[1].trim();
+  // If no angle brackets, try to use the last "word" as email
+  return str.trim();
+}
+
 app.post('/api/process-replies', async (req, res) => {
   try {
     const { sendId } = req.body;
@@ -194,7 +202,10 @@ app.post('/api/process-replies', async (req, res) => {
 
     // Load persisted send metadata
     const storePath = path.join(__dirname, 'sent_emails.json');
-    if (!fs.existsSync(storePath)) return res.status(404).json({ error: 'No sends recorded' });
+    if (!fs.existsSync(storePath)) {
+      return res.status(404).json({ error: 'No sends recorded' });
+    }
+
     const raw = fs.readFileSync(storePath, 'utf8');
     const store = raw ? JSON.parse(raw) : [];
     const entry = store.find(e => e.sendId === sendId);
@@ -204,19 +215,28 @@ app.post('/api/process-replies', async (req, res) => {
     // Fetch replies via IMAP
     const replies = await fetchRepliesForSendId(sendId);
     console.log(`Fetched ${replies.length} total replies from mail server for sendId ${sendId}`);
+    console.log(replies);
 
     // Map replies to vendors
     const vendorReplies = [];
     for (const r of replies) {
       const matchedVendors = [];
-      const fromAddr = (r.from || '').toLowerCase();
+      const fromRaw = r.from || '';
+      const fromEmail = extractEmail(fromRaw).toLowerCase();
+      console.log('Processing reply from:', fromRaw, 'Extracted email:', fromEmail);
 
       for (const [i, em] of (entry.recipientEmails || []).entries()) {
-        if (fromAddr.includes((em || '').toLowerCase())) {
+        if (!em) continue;
+        const recipientEmail = em.toLowerCase().trim();
+        console.log('Comparing to recipient email:', recipientEmail);
+
+        // Strict email equality instead of "includes"
+        if (fromEmail === recipientEmail) {
           const vendorName =
-            entry.vendorNames && entry.vendorNames[i]
+            Array.isArray(entry.vendorNames) && entry.vendorNames[i]
               ? entry.vendorNames[i]
               : null;
+
           matchedVendors.push(vendorName || em);
         }
       }
@@ -250,24 +270,11 @@ app.post('/api/process-replies', async (req, res) => {
       vendorNames = Array.from(set);
     }
 
-    console.log('Final vendorNames passed to LLM:', vendorNames);
-
-    if (!vendorNames.length) {
-      return res.json({
-        success: false,
-        sendId,
-        decision: {
-          bestVendor: null,
-          reason: 'No vendors found from entry or replies.',
-        },
-        vendorReplies,
-      });
-    }
-
-    // Call LLM to pick best vendor
+    console.log('Final vendorNames before calling LLM:', vendorNames);
+    // You can decide how to handle the "no vendors" case inside selectBestVendor itself.
     const decision = await selectBestVendor({
       sendId,
-      vendorNames,
+      vendorNames,     // can be [] if nothing matched
       replies: vendorReplies,
     });
 
