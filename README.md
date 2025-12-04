@@ -58,6 +58,7 @@ SMTP_USER=your_email@gmail.com
 SMTP_PASS=email_app_password
 
 
+
 d. Run Everything Locally
 
 Start Ollama server
@@ -83,6 +84,7 @@ Open browser:
 - http://localhost:3000/
   
 
+
 **2. Tech Stack**
 
 a. Technologies Used
@@ -98,6 +100,7 @@ a. Technologies Used
 | Data Store       | JSON file (future: Database implementation)             |
 
 
+
 **3. API Documentation**
 
 a. Endpoints
@@ -107,6 +110,7 @@ a. Endpoints
 | POST   | `/api/generate-rfp`  | Generates RFP text, creates PDF, sends email to vendors |
 | POST   | `/api/process-replies` | Reads email inbox replies & performs vendor comparison using AI |
 | GET    | `/api/vendors`       | Fetch available vendor names                         |
+
 
 
 **4. Decisions & Assumptions**
@@ -125,6 +129,8 @@ a. Key System Design Decisions
 - Simple IMAP inbox structure (`INBOX` only)
 - No attachments handling yet (can be enhanced)
 - JSON data store will be replaced later with a database
+
+
 
 5. AI Tools Usage
    
