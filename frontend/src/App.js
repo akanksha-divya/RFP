@@ -8,6 +8,10 @@ function App() {
   const [vendorsLoading, setVendorsLoading] = useState(false);
   const [vendorsError, setVendorsError] = useState(null);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [lastSendId, setLastSendId] = useState(null);
+  const [processLoading, setProcessLoading] = useState(false);
+  const [bestDecision, setBestDecision] = useState(null);
+  const [vendorReplies, setVendorReplies] = useState([]);
 
   useEffect(() => {
     // Fetch vendor names from backend API
@@ -78,7 +82,11 @@ function App() {
       console.log("RFP Generated:", data.rfpText);
       console.log("Selected vendors:", selectedVendorNames);
       console.log('Email result:', data.emailResult);
-      
+      // Save sendId for later reply collection
+      if (data.emailResult && data.emailResult.sendId) {
+        setLastSendId(data.emailResult.sendId);
+      }
+
       // Show PDF if available
       if (data.pdfUrl) {
         const open = window.open(data.pdfUrl, '_blank');
@@ -172,11 +180,67 @@ function App() {
               />
             </div>
             {/* SUBMIT BUTTON */}
-            <div className="d-grid">
+            <div className="d-grid mb-3">
               <button type="submit" className="btn btn-primary" disabled={submitLoading}>
                 {submitLoading ? 'Generating RFP...' : 'Generate & Send RFP'}
               </button>
             </div>
+
+            {/* Send info and reply processing */}
+            {lastSendId && (
+              <div className="mb-3">
+                <div className="mt-2 d-flex gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={processLoading}
+                    onClick={async () => {
+                      setProcessLoading(true);
+                      setBestDecision(null);
+                      setVendorReplies([]);
+                      try {
+                        const resp = await fetch('http://localhost:5000/api/process-replies', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ sendId: lastSendId }),
+                        });
+                        const json = await resp.json();
+                        if (!resp.ok) throw new Error(json.error || 'Failed');
+                        setBestDecision(json.decision);
+                        setVendorReplies(json.vendorReplies || []);
+                      } catch (e) {
+                        alert('Failed to collect replies: ' + (e.message || e));
+                        console.error(e);
+                      } finally {
+                        setProcessLoading(false);
+                      }
+                    }}
+                  >{processLoading ? 'Processing...' : 'Collect Replies & Select Best'}</button>
+                </div>
+
+                {bestDecision && (
+                  <div className="mt-3 card p-3">
+                    <h4 className="h6">Vendor Selected </h4>
+                    <pre style={{whiteSpace:'pre-wrap'}}>{JSON.stringify(bestDecision, null, 2)}</pre>
+                  </div>
+                )}
+
+                {/* {vendorReplies.length > 0 && (
+                  <div className="mt-3 card p-3">
+                    <h4 className="h6">Collected Replies</h4>
+                    {vendorReplies.map((r, i) => (
+                      <div key={i} className="mb-2">
+                        <div><strong>From:</strong> {r.from}</div>
+                        <div><strong>Vendors:</strong> {(r.vendors || []).join(', ')}</div>
+                        <div style={{whiteSpace:'pre-wrap'}}>{r.text}</div>
+                        <hr />
+                      </div>
+                    ))}
+                  </div>
+                )} */}
+              </div>
+            )}
+
           </form>
         </div>
       </div>

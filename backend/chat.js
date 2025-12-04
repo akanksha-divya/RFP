@@ -80,6 +80,83 @@ Formatting Requirements:
   return fallbackRfp;
 }
 
+async function selectBestVendor({ sendId, vendorNames = [], replies = [] }) {
+  // Format a prompt summarizing replies grouped by vendor and ask the LLM to pick the best vendor and provide rationale
+  const systemPrompt = `You are an expert procurement evaluator. Given vendor replies to an RFP, choose the single best vendor and provide a short rationale. Output must be JSON with keys: { "bestVendor": "<vendor name>", "reason": "<short explanation>" }.`;
+
+  // Build user content with vendor mapping
+  let userContent = `Evaluate the replies for sendId: ${sendId}\n\nVendors and replies:\n`;
+  for (const v of vendorNames) {
+    userContent += `\nVendor: ${v}\n`;
+    const vendorReplies = replies.filter(r => (r.vendors || []).includes(v));
+    if (vendorReplies.length === 0) {
+      userContent += `  No replies received.\n`;
+    } else {
+      vendorReplies.forEach((r, idx) => {
+        userContent += `  Reply ${idx + 1} from ${r.from} on ${r.date}:\n`;
+        userContent += `    ${r.text.replace(/\r?\n/g, ' ').slice(0, 800)}\n`;
+      });
+    }
+  }
+
+  userContent += `\nPlease pick the best vendor (from the provided vendor list) and give a concise reason (2-4 sentences). Return only valid JSON.`;
+
+  try {
+    const response = await fetch("http://localhost:11434/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "gemma3:1b",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContent }
+        ],
+        stream: false,
+      }),
+    });
+
+    const data = await response.json().catch(() => null);
+    if (response.ok && data) {
+      const content =
+        data?.message?.content ||
+        data?.choices?.[0]?.message?.content ||
+        data?.output?.[0]?.content ||
+        data?.results?.[0]?.content ||
+        data?.result?.[0]?.content;
+
+      if (content) {
+        // try to extract JSON from the content
+        const match = content.match(/\{[\s\S]*\}/);
+        if (match) {
+          try {
+            return JSON.parse(match[0]);
+          } catch (e) {
+            return { raw: content };
+          }
+        }
+        return { raw: content };
+      }
+    }
+  } catch (err) {
+    console.warn('LLM selectBestVendor failed:', err.message);
+  }
+
+  // Fallback: naive heuristic - pick vendor with most replies
+  const counts = {};
+  for (const r of replies) {
+    for (const v of (r.vendors || [])) counts[v] = (counts[v] || 0) + 1;
+  }
+  let best = null;
+  let bestCount = -1;
+  for (const v of vendorNames) {
+    const c = counts[v] || 0;
+    if (c > bestCount) { best = v; bestCount = c; }
+  }
+  if (!best && vendorNames.length > 0) best = vendorNames[0];
+
+  return { bestVendor: best, reason: `Selected by fallback heuristic based on reply counts (${bestCount} replies).` };
+}
+
 function saveRfpToPdf(rfpText, outputPath = "rfp.pdf") {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50, size: "A4" });
@@ -97,7 +174,7 @@ function saveRfpToPdf(rfpText, outputPath = "rfp.pdf") {
 }
 
 // Export functions for use in API
-module.exports = { generateRFP, saveRfpToPdf };
+module.exports = { generateRFP, saveRfpToPdf, selectBestVendor };
 
 // ---- Full flow: description -> RFP -> PDF -> email ----
 // Only run this if file is executed directly (not imported)

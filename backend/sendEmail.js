@@ -2,6 +2,9 @@
 require("dotenv").config();
 const nodemailer = require("nodemailer");
 const path = require("path");
+const fs = require('fs');
+
+const SENT_STORE = path.join(__dirname, 'sent_emails.json');
 
 async function sendRfpEmail({ to, subject, text, pdfPath }) {
   // 1. Create transporter (SMTP)
@@ -33,6 +36,39 @@ async function sendRfpEmail({ to, subject, text, pdfPath }) {
   // 3. Send mail
   const info = await transporter.sendMail(mailOptions);
   console.log("Email sent:", info.messageId);
+  // Record the send metadata locally so replies can be correlated
+  try {
+    const sendIdMatch = subject.match(/\[sendId:([^\]]+)\]/);
+    const sendId = sendIdMatch ? sendIdMatch[1] : null;
+
+    const entry = {
+      sendId,
+      messageId: info.messageId,
+      to: Array.isArray(to) ? to : (typeof to === 'string' ? to.split(',').map(s=>s.trim()) : []),
+      subject,
+      pdfPath,
+      timestamp: new Date().toISOString(),
+    };
+
+    let store = [];
+    try {
+      if (fs.existsSync(SENT_STORE)) {
+        const raw = fs.readFileSync(SENT_STORE, 'utf8');
+        store = raw ? JSON.parse(raw) : [];
+      }
+    } catch (e) {
+      console.warn('Could not read sent_emails.json:', e.message);
+    }
+
+    store.push(entry);
+    try {
+      fs.writeFileSync(SENT_STORE, JSON.stringify(store, null, 2), 'utf8');
+    } catch (e) {
+      console.warn('Failed to write sent_emails.json:', e.message);
+    }
+  } catch (e) {
+    console.warn('Failed to record send metadata:', e.message);
+  }
 }
 
 module.exports = { sendRfpEmail };

@@ -6,6 +6,9 @@ const mysql = require('mysql2/promise');
 const path = require('path');
 const { generateRFP, saveRfpToPdf } = require('./chat');
 const { sendRfpEmail } = require('./sendEmail');
+const { fetchRepliesForSendId } = require('./mailReader');
+const fs = require('fs');
+const { selectBestVendor } = require('./chat');
 
 const app = express();
 app.use(cors());
@@ -84,15 +87,32 @@ app.post('/api/generate-rfp', async (req, res) => {
         console.log('Found recipient emails:', recipientEmails);
 
         if (recipientEmails.length > 0) {
-          // Send email to all found emails
-          await sendRfpEmail({
-            to: recipientEmails,
-            subject: `Generated RFP - ${new Date().toLocaleString()}`,
-            text: `Please find attached the generated RFP.\n\nDescription:\n${description}`,
-            pdfPath: pdfPath,
-          });
+                // create a sendId so replies can be correlated
+                const sendId = `send-${Date.now()}-${Math.random().toString(16).slice(2,8)}`;
+                const subjectText = `Generated RFP - ${new Date().toLocaleString()} [sendId:${sendId}]`;
 
-          emailResult = { success: true, sentTo: recipientEmails, count: recipientEmails.length };
+                await sendRfpEmail({
+                  to: recipientEmails,
+                  subject: subjectText,
+                  text: `Please find attached the generated RFP.\n\nDescription:\n${description}`,
+                  pdfPath: pdfPath,
+                });
+
+                // Persist metadata about this send so we can later fetch replies and know vendor mapping
+                try {
+                  const storePath = path.join(__dirname, 'sent_emails.json');
+                  let store = [];
+                  if (fs.existsSync(storePath)) {
+                    const raw = fs.readFileSync(storePath, 'utf8');
+                    store = raw ? JSON.parse(raw) : [];
+                  }
+                  store.push({ sendId, timestamp: new Date().toISOString(), vendorNames, recipientEmails, pdfFilename });
+                  fs.writeFileSync(storePath, JSON.stringify(store, null, 2), 'utf8');
+                } catch (e) {
+                  console.warn('Failed to persist send metadata:', e.message);
+                }
+
+                emailResult = { success: true, sentTo: recipientEmails, count: recipientEmails.length, sendId };
         } else {
           emailResult = { success: false, error: 'No emails found for selected vendors' };
         }
@@ -116,6 +136,50 @@ app.post('/api/generate-rfp', async (req, res) => {
   } catch (error) {
     console.error('Error generating RFP:', error);
     res.status(500).json({ error: 'Failed to generate RFP', details: error.message });
+  }
+});
+
+// POST /api/process-replies - fetch replies for a given sendId and ask LLM to select best vendor
+app.post('/api/process-replies', async (req, res) => {
+  try {
+    const { sendId } = req.body;
+    if (!sendId) return res.status(400).json({ error: 'sendId is required' });
+
+    // Load persisted send metadata
+    const storePath = path.join(__dirname, 'sent_emails.json');
+    if (!fs.existsSync(storePath)) return res.status(404).json({ error: 'No sends recorded' });
+    const raw = fs.readFileSync(storePath, 'utf8');
+    const store = raw ? JSON.parse(raw) : [];
+    const entry = store.find(e => e.sendId === sendId);
+    if (!entry) return res.status(404).json({ error: 'sendId not found' });
+
+    // Fetch replies via IMAP
+    const replies = await fetchRepliesForSendId(sendId);
+
+    // Map replies to vendors: if reply.from matches one of recipientEmails, attribute it.
+    const vendorReplies = [];
+    for (const r of replies) {
+      // find vendor(s) that had this email address
+      const matchedVendors = [];
+      const fromAddr = (r.from || '').toLowerCase();
+      for (const [i, em] of (entry.recipientEmails || []).entries()) {
+        if (fromAddr.includes((em || '').toLowerCase())) {
+          // Find vendor by email in vendorNames mapping in DB would be ideal; we saved only recipientEmails and vendorNames
+          const vendorName = entry.vendorNames && entry.vendorNames[i] ? entry.vendorNames[i] : null;
+          matchedVendors.push(vendorName || em);
+        }
+      }
+      vendorReplies.push({ from: r.from, subject: r.subject, date: r.date, text: r.text, vendors: matchedVendors });
+    }
+
+    // Call LLM to pick best vendor
+    const decision = await selectBestVendor({ sendId, vendorNames: entry.vendorNames || [], replies: vendorReplies });
+
+    // Return decision and replies
+    res.json({ success: true, sendId, decision, vendorReplies });
+  } catch (err) {
+    console.error('Error processing replies:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
