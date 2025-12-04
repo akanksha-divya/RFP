@@ -1,4 +1,5 @@
 _**RFP Generator & Vendor Selection System**_
+
 **Overview **
 A full-stack application that allows organizations to:
 1. Create an RFP (Request For Proposal) automatically using AI (LLM)
@@ -8,7 +9,8 @@ A full-stack application that allows organizations to:
 5. Display final decision and reply summary in a modern UI
 
 
-**1. Project Setup (Mandatory)**
+**1. Project Setup**
+
 a. Prerequisites
 | Requirement              | Version / Description                      |
 |--------------------------|--------------------------------------------|
