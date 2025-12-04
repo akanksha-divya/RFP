@@ -150,3 +150,21 @@ c. Learning Outcomes
 - Validation layers still required to avoid hallucinated responses
 - IMAP email text extraction varies widely across providers
 
+
+**6. Screenshots**
+
+1. Homepage
+![Homepage Screenshot](./screenshots/1.png)
+
+
+2. RFP Email
+![RFP Email Screenshot](./screenshots/2.png)
+
+
+3. Generated RFP Pdf
+![RFP pdf Screenshot](./screenshots/3.png)
+
+
+4. Vendor Selection
+![Vender Selection Screenshot](./screenshots/4.png)
+
