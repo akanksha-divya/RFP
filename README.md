@@ -39,23 +39,16 @@ c. Configure Email Sending/Receiving
 
 Create .env inside backend/:
 
-IMAP_HOST=imap.gmail.com
+- `IMAP_HOST=imap.gmail.com`
+- `IMAP_PORT=993`
+- `IMAP_USER=your_email@gmail.com`
+- `IMAP_PASS=email_app_password`
+- `IMAP_TLS=true`
+- `SMTP_HOST=smtp.gmail.com`
+- `SMTP_PORT=465`
+- `SMTP_USER=your_email@gmail.com`
+- `SMTP_PASS=email_app_password`
 
-IMAP_PORT=993
-
-IMAP_USER=your_email@gmail.com
-
-IMAP_PASS=email_app_password
-
-IMAP_TLS=true
-
-SMTP_HOST=smtp.gmail.com
-
-SMTP_PORT=465
-
-SMTP_USER=your_email@gmail.com
-
-SMTP_PASS=email_app_password
 
 
 
