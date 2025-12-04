@@ -112,5 +112,53 @@
       "prashali309@gmail.com"
     ],
     "pdfFilename": "RFP_1764817579772.pdf"
+  },
+  {
+    "sendId": "send-1764819030839-75116b",
+    "messageId": "<963b0af2-1d0b-0f27-240a-6276d12d9151@gmail.com>",
+    "to": [
+      "divyatigga0526@gmail.com",
+      "prashali309@gmail.com"
+    ],
+    "subject": "Generated RFP - 4/12/2025, 9:00:30 am [sendId:send-1764819030839-75116b]",
+    "pdfPath": "C:\\Users\\akank\\RFP\\backend\\RFP_1764819030748.pdf",
+    "timestamp": "2025-12-04T03:30:35.244Z"
+  },
+  {
+    "sendId": "send-1764819030839-75116b",
+    "timestamp": "2025-12-04T03:30:35.248Z",
+    "vendorNames": [
+      "Sony Enterprises",
+      "Ayur Global Pvt. Ltd"
+    ],
+    "recipientEmails": [
+      "divyatigga0526@gmail.com",
+      "prashali309@gmail.com"
+    ],
+    "pdfFilename": "RFP_1764819030748.pdf"
+  },
+  {
+    "sendId": "send-1764819562803-23abdc",
+    "messageId": "<cdf98e31-5333-db32-0818-8da4c6dcc8c5@gmail.com>",
+    "to": [
+      "divyatigga0526@gmail.com",
+      "prashali309@gmail.com"
+    ],
+    "subject": "Generated RFP - 4/12/2025, 9:09:22 am [sendId:send-1764819562803-23abdc]",
+    "pdfPath": "C:\\Users\\akank\\RFP\\backend\\RFP_1764819562710.pdf",
+    "timestamp": "2025-12-04T03:39:26.915Z"
+  },
+  {
+    "sendId": "send-1764819562803-23abdc",
+    "timestamp": "2025-12-04T03:39:26.919Z",
+    "vendorNames": [
+      "Sony Enterprises",
+      "Ayur Global Pvt. Ltd"
+    ],
+    "recipientEmails": [
+      "divyatigga0526@gmail.com",
+      "prashali309@gmail.com"
+    ],
+    "pdfFilename": "RFP_1764819562710.pdf"
   }
 ]
