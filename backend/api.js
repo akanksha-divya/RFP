@@ -140,6 +140,53 @@ app.post('/api/generate-rfp', async (req, res) => {
 });
 
 // POST /api/process-replies - fetch replies for a given sendId and ask LLM to select best vendor
+// app.post('/api/process-replies', async (req, res) => {
+//   try {
+//     const { sendId } = req.body;
+//     if (!sendId) return res.status(400).json({ error: 'sendId is required' });
+
+//     // Load persisted send metadata
+//     const storePath = path.join(__dirname, 'sent_emails.json');
+//     if (!fs.existsSync(storePath)) return res.status(404).json({ error: 'No sends recorded' });
+//     const raw = fs.readFileSync(storePath, 'utf8');
+//     const store = raw ? JSON.parse(raw) : [];
+//     const entry = store.find(e => e.sendId === sendId);
+//     if (!entry) return res.status(404).json({ error: 'sendId not found' });
+
+//     // Fetch replies via IMAP
+//     const replies = await fetchRepliesForSendId(sendId);
+
+//     // Map replies to vendors: if reply.from matches one of recipientEmails, attribute it.
+//     const vendorReplies = [];
+//     for (const r of replies) {
+//       // find vendor(s) that had this email address
+//       const matchedVendors = [];
+//       const fromAddr = (r.from || '').toLowerCase();
+//       for (const [i, em] of (entry.recipientEmails || []).entries()) {
+//         if (fromAddr.includes((em || '').toLowerCase())) {
+//           // Find vendor by email in vendorNames mapping in DB would be ideal; we saved only recipientEmails and vendorNames
+//           const vendorName = entry.vendorNames && entry.vendorNames[i] ? entry.vendorNames[i] : null;
+//           matchedVendors.push(vendorName || em);
+//         }
+//       }
+//       vendorReplies.push({ from: r.from, subject: r.subject, date: r.date, text: r.text, vendors: matchedVendors });
+//     }
+
+//     console.log(`Fetched ${vendorReplies.length} replies for sendId ${sendId}`);
+//     console.log('Vendor replies:', vendorReplies);
+//     console.log('Entry vendor names:', entry.vendorNames);
+
+//     // Call LLM to pick best vendor
+//     const decision = await selectBestVendor({ sendId, vendorNames: entry.vendorNames || [], replies: vendorReplies });
+
+//     // Return decision and replies
+//     res.json({ success: true, sendId, decision, vendorReplies });
+//   } catch (err) {
+//     console.error('Error processing replies:', err);
+//     res.status(500).json({ error: err.message });
+//   }
+// });
+
 app.post('/api/process-replies', async (req, res) => {
   try {
     const { sendId } = req.body;
@@ -151,29 +198,78 @@ app.post('/api/process-replies', async (req, res) => {
     const raw = fs.readFileSync(storePath, 'utf8');
     const store = raw ? JSON.parse(raw) : [];
     const entry = store.find(e => e.sendId === sendId);
+    console.log('Processing replies for sendId:', sendId, 'Found entry:', Boolean(entry));
     if (!entry) return res.status(404).json({ error: 'sendId not found' });
 
     // Fetch replies via IMAP
     const replies = await fetchRepliesForSendId(sendId);
+    console.log(`Fetched ${replies.length} total replies from mail server for sendId ${sendId}`);
 
-    // Map replies to vendors: if reply.from matches one of recipientEmails, attribute it.
+    // Map replies to vendors
     const vendorReplies = [];
     for (const r of replies) {
-      // find vendor(s) that had this email address
       const matchedVendors = [];
       const fromAddr = (r.from || '').toLowerCase();
+
       for (const [i, em] of (entry.recipientEmails || []).entries()) {
         if (fromAddr.includes((em || '').toLowerCase())) {
-          // Find vendor by email in vendorNames mapping in DB would be ideal; we saved only recipientEmails and vendorNames
-          const vendorName = entry.vendorNames && entry.vendorNames[i] ? entry.vendorNames[i] : null;
+          const vendorName =
+            entry.vendorNames && entry.vendorNames[i]
+              ? entry.vendorNames[i]
+              : null;
           matchedVendors.push(vendorName || em);
         }
       }
-      vendorReplies.push({ from: r.from, subject: r.subject, date: r.date, text: r.text, vendors: matchedVendors });
+
+      vendorReplies.push({
+        from: r.from,
+        subject: r.subject,
+        date: r.date,
+        text: r.text,
+        vendors: matchedVendors,
+      });
+    }
+
+    console.log(`Fetched ${vendorReplies.length} replies for sendId ${sendId}`);
+    console.log('Vendor replies:', vendorReplies);
+    console.log('Entry vendor names:', entry.vendorNames);
+
+    // 🔹 Build vendorNames from entry.vendorNames OR from vendorReplies
+    let vendorNames = Array.isArray(entry.vendorNames)
+      ? entry.vendorNames.filter(Boolean)
+      : [];
+
+    if (!vendorNames.length) {
+      // derive unique vendor names from reply.vendors
+      const set = new Set();
+      for (const vr of vendorReplies) {
+        for (const v of vr.vendors || []) {
+          if (v && typeof v === 'string') set.add(v.trim());
+        }
+      }
+      vendorNames = Array.from(set);
+    }
+
+    console.log('Final vendorNames passed to LLM:', vendorNames);
+
+    if (!vendorNames.length) {
+      return res.json({
+        success: false,
+        sendId,
+        decision: {
+          bestVendor: null,
+          reason: 'No vendors found from entry or replies.',
+        },
+        vendorReplies,
+      });
     }
 
     // Call LLM to pick best vendor
-    const decision = await selectBestVendor({ sendId, vendorNames: entry.vendorNames || [], replies: vendorReplies });
+    const decision = await selectBestVendor({
+      sendId,
+      vendorNames,
+      replies: vendorReplies,
+    });
 
     // Return decision and replies
     res.json({ success: true, sendId, decision, vendorReplies });
@@ -182,6 +278,7 @@ app.post('/api/process-replies', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

@@ -80,60 +80,199 @@ Formatting Requirements:
   return fallbackRfp;
 }
 
+// async function selectBestVendor({ sendId, vendorNames = [], replies = [] }) {
+//   // Much stricter system prompt
+//   const systemPrompt = `
+// You are an expert procurement evaluator.
+
+// You will be given:
+// - A list called VENDOR_LIST which contains all valid vendor names.
+// - A set of replies from those vendors in plain text.
+
+// Your job:
+// 1. Evaluate the vendors based ONLY on:
+//    - Budget / cost competitiveness
+//    - Delivery time / schedule feasibility
+//    - Quality, technical fit, and overall risk
+// 2. Choose exactly ONE vendor as "bestVendor".
+// 3. "bestVendor" MUST be a string that matches EXACTLY one of the vendor names in VENDOR_LIST.
+//    - DO NOT invent or create any new vendor names.
+//    - DO NOT modify vendor names (no extra words, no abbreviations, no prefixes/suffixes).
+// 4. If the information is incomplete or ambiguous, choose the vendor that appears to offer the best balance of cost, delivery time, and quality based on what is available.
+// 5. If ALL vendors have almost identical information, break ties using:
+//    - More detailed / clearer proposal
+//    - Better alignment with scope and requirements
+
+// Output format:
+// - You must return ONLY valid JSON.
+// - No Markdown, no explanations outside JSON, no extra text.
+// - Shape must be:
+
+// {
+//   "bestVendor": "<one exact value from vendorNames>",
+//   "reason": "<2-4 sentences explaining why this vendor is best based on budget, time, and other parameters>"
+// }
+// `;
+
+//   // Build user content: make the vendor list explicit and visible
+//   let userContent = `sendId: ${sendId}\n\n`;
+//   userContent += `VENDOR_LIST = ${JSON.stringify(vendorNames)}\n\n`;
+//   userContent += `RFP replies grouped by vendor:\n`;
+
+//   for (const v of vendorNames) {
+//     userContent += `\n=== Vendor: ${v} ===\n`;
+//     const vendorReplies = replies.filter(r => (r.vendors || []).includes(v));
+
+//     if (vendorReplies.length === 0) {
+//       userContent += `No replies received for this vendor.\n`;
+//     } else {
+//       vendorReplies.forEach((r, idx) => {
+//         userContent += `Reply ${idx + 1} (from: ${r.from}, date: ${r.date}):\n`;
+//         userContent += `${(r.text || '').replace(/\r?\n/g, ' ').slice(0, 1000)}\n`;
+//       });
+//     }
+//   }
+
+//   userContent += `\nRemember: "bestVendor" MUST be one of the names in VENDOR_LIST. Return ONLY valid JSON as specified.`;
+
+//   try {
+//     const response = await fetch("http://localhost:11434/api/chat", {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({
+//         model: "gemma3:1b",
+//         messages: [
+//           { role: "system", content: systemPrompt },
+//           { role: "user", content: userContent }
+//         ],
+//         stream: false,
+//       }),
+//     });
+
+//     const data = await response.json().catch(() => null);
+//     if (response.ok && data) {
+//       const content =
+//         data?.message?.content ||
+//         data?.choices?.[0]?.message?.content ||
+//         data?.output?.[0]?.content ||
+//         data?.results?.[0]?.content ||
+//         data?.result?.[0]?.content;
+
+//       if (content) {
+//         const match = content.match(/\{[\s\S]*\}/);
+//         if (match) {
+//           try {
+//             const parsed = JSON.parse(match[0]);
+
+//             // Optional: validate bestVendor is from vendorNames
+//             if (
+//               parsed &&
+//               typeof parsed.bestVendor === "string" &&
+//               vendorNames.includes(parsed.bestVendor)
+//             ) {
+//               return parsed;
+//             }
+
+//             // if JSON is valid but vendor is invalid, fall back to heuristic
+//             console.warn("LLM returned vendor not in list, using fallback heuristic.");
+//           } catch (e) {
+//             return { raw: content };
+//           }
+//         }
+//         return { raw: content };
+//       }
+//     }
+//   } catch (err) {
+//     console.warn("LLM selectBestVendor failed:", err.message);
+//   }
+
+//   // Fallback: naive heuristic - pick vendor with most replies
+//   const counts = {};
+//   for (const r of replies) {
+//     for (const v of (r.vendors || [])) counts[v] = (counts[v] || 0) + 1;
+//   }
+//   let best = null;
+//   let bestCount = -1;
+//   for (const v of vendorNames) {
+//     const c = counts[v] || 0;
+//     if (c > bestCount) {
+//       best = v;
+//       bestCount = c;
+//     }
+//   }
+//   if (!best && vendorNames.length > 0) best = vendorNames[0];
+
+//   return {
+//     bestVendor: best,
+//     reason: `Selected by fallback heuristic based on reply counts (${bestCount} replies).`,
+//   };
+// }
+
 async function selectBestVendor({ sendId, vendorNames = [], replies = [] }) {
-  // Much stricter system prompt
+  // Guard: no vendors
+  if (!Array.isArray(vendorNames) || vendorNames.length === 0) {
+    return {
+      bestVendor: null,
+      reason: "No vendors provided",
+    };
+  }
+
   const systemPrompt = `
 You are an expert procurement evaluator.
 
 You will be given:
-- A list called VENDOR_LIST which contains all valid vendor names.
-- A set of replies from those vendors in plain text.
+1) A numbered vendor list called VENDOR_LIST. Each vendor has an integer index: 0, 1, 2, ...
+2) A set of proposal replies from those vendors.
 
 Your job:
-1. Evaluate the vendors based ONLY on:
-   - Budget / cost competitiveness
-   - Delivery time / schedule feasibility
-   - Quality, technical fit, and overall risk
-2. Choose exactly ONE vendor as "bestVendor".
-3. "bestVendor" MUST be a string that matches EXACTLY one of the vendor names in VENDOR_LIST.
-   - DO NOT invent or create any new vendor names.
-   - DO NOT modify vendor names (no extra words, no abbreviations, no prefixes/suffixes).
-4. If the information is incomplete or ambiguous, choose the vendor that appears to offer the best balance of cost, delivery time, and quality based on what is available.
-5. If ALL vendors have almost identical information, break ties using:
-   - More detailed / clearer proposal
-   - Better alignment with scope and requirements
+- Evaluate vendors ONLY on:
+  - Budget / cost competitiveness
+  - Delivery time / schedule feasibility
+  - Technical fit, quality, and overall risk
+- Choose EXACTLY ONE vendor as the winner.
+
+IMPORTANT RULES:
+- You must select the vendor by its INDEX, not by its name.
+- The index MUST be an integer from 0 to N-1, where N is the length of VENDOR_LIST.
+- DO NOT invent any new vendors.
+- DO NOT return the vendor name, only the integer index.
+
+If information is incomplete or similar across vendors, pick the one that appears to best balance cost, delivery time, and quality.
 
 Output format:
-- You must return ONLY valid JSON.
-- No Markdown, no explanations outside JSON, no extra text.
-- Shape must be:
+- Return ONLY valid JSON (no Markdown, no extra explanation).
+- Shape must be exactly:
 
 {
-  "bestVendor": "<one exact value from vendorNames>",
-  "reason": "<2-4 sentences explaining why this vendor is best based on budget, time, and other parameters>"
+  "bestVendorIndex": <integer between 0 and N-1>,
+  "reason": "<2-4 sentences explaining why this vendor is best based on budget, delivery time, and other parameters>"
 }
 `;
 
-  // Build user content: make the vendor list explicit and visible
+  // Build user content with explicit indices
   let userContent = `sendId: ${sendId}\n\n`;
-  userContent += `VENDOR_LIST = ${JSON.stringify(vendorNames)}\n\n`;
-  userContent += `RFP replies grouped by vendor:\n`;
+  userContent += `VENDOR_LIST (indexed):\n`;
+  vendorNames.forEach((name, idx) => {
+    userContent += `${idx}: ${name}\n`;
+  });
 
-  for (const v of vendorNames) {
-    userContent += `\n=== Vendor: ${v} ===\n`;
-    const vendorReplies = replies.filter(r => (r.vendors || []).includes(v));
+  userContent += `\nRFP replies grouped by vendor index:\n`;
+
+  vendorNames.forEach((name, idx) => {
+    userContent += `\n=== Vendor index ${idx} (${name}) ===\n`;
+    const vendorReplies = replies.filter(r => (r.vendors || []).includes(name));
 
     if (vendorReplies.length === 0) {
       userContent += `No replies received for this vendor.\n`;
     } else {
-      vendorReplies.forEach((r, idx) => {
-        userContent += `Reply ${idx + 1} (from: ${r.from}, date: ${r.date}):\n`;
-        userContent += `${(r.text || '').replace(/\r?\n/g, ' ').slice(0, 1000)}\n`;
+      vendorReplies.forEach((r, i) => {
+        userContent += `Reply ${i + 1} (from: ${r.from}, date: ${r.date}):\n`;
+        userContent += `${(r.text || "").replace(/\r?\n/g, " ").slice(0, 1000)}\n`;
       });
     }
-  }
+  });
 
-  userContent += `\nRemember: "bestVendor" MUST be one of the names in VENDOR_LIST. Return ONLY valid JSON as specified.`;
+  userContent += `\nRemember: "bestVendorIndex" MUST be an integer between 0 and ${vendorNames.length - 1}. Return ONLY the JSON object described in the instructions.`;
 
   try {
     const response = await fetch("http://localhost:11434/api/chat", {
@@ -143,9 +282,11 @@ Output format:
         model: "gemma3:1b",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: userContent }
+          { role: "user", content: userContent },
         ],
         stream: false,
+        // If your Ollama build supports "options", you can uncomment:
+        // options: { temperature: 0.1 }
       }),
     });
 
@@ -164,18 +305,27 @@ Output format:
           try {
             const parsed = JSON.parse(match[0]);
 
-            // Optional: validate bestVendor is from vendorNames
             if (
               parsed &&
-              typeof parsed.bestVendor === "string" &&
-              vendorNames.includes(parsed.bestVendor)
+              Number.isInteger(parsed.bestVendorIndex) &&
+              parsed.bestVendorIndex >= 0 &&
+              parsed.bestVendorIndex < vendorNames.length
             ) {
-              return parsed;
+              const bestVendor = vendorNames[parsed.bestVendorIndex];
+              return {
+                bestVendor,
+                reason:
+                  parsed.reason ||
+                  `Selected vendor at index ${parsed.bestVendorIndex}.`,
+              };
             }
 
-            // if JSON is valid but vendor is invalid, fall back to heuristic
-            console.warn("LLM returned vendor not in list, using fallback heuristic.");
+            console.warn(
+              "LLM returned invalid bestVendorIndex:",
+              parsed?.bestVendorIndex
+            );
           } catch (e) {
+            console.warn("Failed to parse JSON from LLM:", e.message);
             return { raw: content };
           }
         }
@@ -189,8 +339,11 @@ Output format:
   // Fallback: naive heuristic - pick vendor with most replies
   const counts = {};
   for (const r of replies) {
-    for (const v of (r.vendors || [])) counts[v] = (counts[v] || 0) + 1;
+    for (const v of (r.vendors || [])) {
+      counts[v] = (counts[v] || 0) + 1;
+    }
   }
+
   let best = null;
   let bestCount = -1;
   for (const v of vendorNames) {
@@ -207,6 +360,7 @@ Output format:
     reason: `Selected by fallback heuristic based on reply counts (${bestCount} replies).`,
   };
 }
+
 
 function saveRfpToPdf(rfpText, outputPath = "rfp.pdf") {
   return new Promise((resolve, reject) => {
